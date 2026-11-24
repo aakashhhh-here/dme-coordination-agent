@@ -1,86 +1,81 @@
 # Writeup
 
+I built the whole loop, from intake to the patient confirming the chair arrived. The delays in this
+job happen between the steps, so automating one step well would have left most of the problem.
+
 ## Sequencing
 
-The build was sized at about 4¼ hours at planning time (an estimate, against the suggested 3).
-Hardening and review of live transcripts came on top of that.
+My plan came to about 4¼ hours, so it was over your 3-hour box from the start. Hardening took more
+time after that.
 
-1. **Event log, clock, state machine with stub handlers.** Everything plugs into these, and they
-   prove the control flow before any model is involved.
-2. **One call: talk, extract, ground.** The riskiest part. If a conversation can't become facts code
-   can trust, nothing else matters, so it came before any workflow.
-3. **Workflows in dependency order:** patient, then suppliers and the doctor's order side by side,
-   then delivery.
-4. **Failure modes as whole-case scenarios.** Lost requests, wrong codes and ghosting are the job,
-   not the edges. Reading live transcripts then found gaps that tests had not: the signed order was
-   never actually sent, and anyone answering the phone was believed.
+1. **State machine, event log and clock first**, with fake handlers. I wanted the control flow right
+   before a model was involved.
+2. **One phone call next:** talk, extract, check. This was the riskiest part. If I can't trust what
+   comes out of a call, nothing after it matters.
+3. **The workflows:** patient, then suppliers and the doctor's order side by side, then delivery.
+4. **The ways it goes wrong**, run as whole cases: lost request, wrong code, supplier goes silent.
 
-I went for the whole loop rather than one deep piece because the delays live in the handoffs.
-What I protected from cuts: extraction, order validation, and escalation.
+Reading full transcripts caught things my tests didn't. The worst: the agent told the supplier "we'll
+send the signed order" and nothing ever sent it. The case still closed. It also believed anyone who
+picked up the patient's phone. Both are fixed.
 
 ## Technology & architecture
 
 ```
- timer due -> Orchestrator.step -> workflow handler -> Result(events, timers, escalate?)
-                    |                     |
-                    |                 Phone -> call_agent <-> person -> extractor -> grounding
-                    v
-            apply events, follow guards, append the batch to the log
+timer fires -> orchestrator -> workflow -> phone call -> extract facts -> check quotes
+                    ^                                                          |
+                    +------- rules decide, state moves, log is written <-------+
 ```
 
-| Choice | Why |
-|---|---|
-| Plain Python state machine, no agent framework | The flow is known in advance, and a reviewer can read every transition in one file. A model choosing the next step would be harder to test and audit |
-| Claude (Opus 5.5 by default) | Calls need judgment and extraction needs care. The agent and simulator models are one line each in `config.py` |
-| Pydantic | One set of types for structured output, events and rules |
-| JSONL event log | The brief allows a file; replay gives crash recovery and an audit trail |
-| Simulated clock | Days of follow-ups run in minutes, and tests are repeatable |
+**Claude talks and reads. Code decides.** Claude holds the calls, turns them into facts and words the
+texts. It never picks a supplier, approves an order, changes state or escalates. Every fact needs a
+quote the other person actually said. No quote means "unknown", and unknown is never a yes.
 
-- **The LLM talks and reads; code decides.** Each extracted fact needs a quote the other party
-  really said, or it counts as unknown. Unknown is never yes or no: it earns a retry, then a human.
-- **Handlers propose, the orchestrator decides.** A handler returns a `Result`; only the
-  orchestrator writes the log or changes state.
-- **A step is one write.** A crash redoes that step. The cost: a call in progress may be placed twice.
-- **The order doesn't wait for the patient.** It needs nothing from them, so it starts 15 minutes
-  in. The cost: the office may do paperwork for someone who then declines.
-- **The code is checked at both ends:** on the doctor's order, and on what the supplier says it will
-  bill. A supplier gets the signed order only after naming the right code.
-- **Know who answered.** Case facts are withheld until code has checked the date of birth. Suppliers
-  hear only a ZIP code until they qualify and the order is valid.
+- **Python, no agent framework.** The steps are known. I'd rather read the flow in one file than
+  debug a model choosing what to do next.
+- **Claude Opus 5.5** for the calls and extraction. A cheaper model may be enough; I haven't
+  measured it.
+- **Pydantic**, so the model output, the log and the rules share one set of types.
+- **JSONL log.** You said a file is fine. Replaying it gives me crash recovery and an audit trail.
+- **Simulated clock**, so a week of follow-ups runs in minutes.
+
+Three calls you may disagree with:
+
+- **I ask the doctor for the order before reaching the patient.** It saves days when she's slow to
+  pick up. The office may do paperwork for someone who then says no.
+- **No order goes to a supplier until they say which code they'll bill.** It's still only their word.
+- **A crash can repeat a call.** I'd rather call twice than lose track of a case.
 
 ## The cut list
 
-| Cut | Why |
-|---|---|
-| Real telephony and fax | Adds integration work without testing the decisions; it sits behind small interfaces |
-| Parallel supplier calls | Saves simulated minutes. Order follow-ups and ghosting cost days |
-| Backup supplier kept warm | Needs a policy on holding two suppliers without misleading either |
-| Supplier memory across cases | One case has no history to learn from |
-| Resuming an escalated case | Needs a human-facing step. Today `ESCALATED` is final and also stops unaffected work, the largest gap against the north star |
-| More than one delivery check-in | One, the business day before, catches silence, but late if the date is far out |
-| A second reschedule | One slip is cheaper than starting over; a second is a pattern |
-| Capped rental, deductible status, proof of delivery | Billing detail beyond the ~20% message. The cost message stays general |
-| Medical necessity | Rests on the doctor's visit notes; we check the order document only |
+- **Real phones and fax.** Lots of integration, and it wouldn't have tested the decisions.
+- **Parallel supplier calls.** Saves minutes. Lost orders and silent suppliers cost days.
+- **Backup supplier.** I didn't want to keep a second supplier waiting without a clear rule for it.
+- **Supplier history.** With one case there's nothing to learn from.
+- **Continuing after a human steps in.** This is the biggest hole. Escalating ends the case, and it
+  also stops work that was going fine, like the order chase when suppliers run out.
+- **More delivery check-ins.** There's one, the business day before. That's late if delivery is weeks out.
+- **More than one reschedule.** Once is fine. Twice and I replace them.
+- **Billing detail** (deductible status, rental rules, proof of delivery). She's told about 20%, not a
+  dollar amount.
+- **Medical necessity.** I check the order, not the visit notes behind it.
 
-**Limits of the evidence.** Offline tests prove control flow and safety rules, not model quality. Live
-runs use simulated people, who are tidier than real ones. No real calls were made. Grounding catches
-invented answers, not a real quote that was misunderstood. The billing check is the supplier's word;
-we never see the claim.
+**What I can't claim:** no real person has been called. The simulated people are far tidier than real
+ones. The quote check catches made-up answers, not a real quote that was misunderstood.
 
 ## What's next
 
 **One more day**
-1. **Resume after a human decides**, and keep unaffected work running meanwhile. A human should
-   answer one question, not inherit the case.
-2. **Earlier delivery check-ins:** confirm within a day of committing, then midway. Ghosting is
-   found only by chasing, so chase sooner.
+
+1. Let a case continue after a human answers, and keep the rest of it moving meanwhile. They should
+   answer one question, not take over the case.
+2. Check in with suppliers earlier: a day after they commit, then halfway.
 
 **Two weeks**
-1. **A graded set of real, consented transcripts**, with extraction accuracy measured per field.
-   It decides whether any live call is safe, so it comes first.
-2. **A backup supplier**, so a ghosting costs hours instead of another round of calls.
-3. **A phone adapter**, with call-consent and recording rules by state, starting with supplier calls:
-   no patient facts are shared while screening.
 
-Why this order: first finish the loop, so a case can always end; then prove we can trust what we
-hear; then put it on real phones.
+1. Real transcripts, with consent, graded field by field. Until I know how often extraction is wrong,
+   I wouldn't put this on a live call.
+2. A backup supplier, so one going silent costs hours instead of another round of calls.
+3. Real phones, supplier screening first, because those calls share no patient details beyond a ZIP.
+
+The order is: make sure every case can finish, prove I can trust what it hears, then let it call people.
