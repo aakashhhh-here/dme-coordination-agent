@@ -1,23 +1,23 @@
 # Writeup
 
-I built the whole loop, from intake to the patient confirming the chair arrived. The delays in this
-job happen between the steps, so automating one step well would have left most of the problem.
-
 ## Sequencing
 
-My plan came to about 4¼ hours, so it was over your 3-hour box from the start. Hardening took more
-time after that.
+**What I built:** the whole loop, from intake to the patient confirming the chair arrived. The delays
+in this job happen between the steps, so automating one step well would have left most of the problem.
 
-1. **State machine, event log and clock first**, with fake handlers. I wanted the control flow right
-   before a model was involved.
-2. **One phone call next:** talk, extract, check. This was the riskiest part. If I can't trust what
-   comes out of a call, nothing after it matters.
-3. **The workflows:** patient, then suppliers and the doctor's order side by side, then delivery.
-4. **The ways it goes wrong**, run as whole cases: lost request, wrong code, supplier goes silent.
+**How I decided the order:** at each point, build what the next piece can't work without.
 
-Reading full transcripts caught things my tests didn't. The worst: the agent told the supplier "we'll
-send the signed order" and nothing ever sent it. The case still closed. It also believed anyone who
-picked up the patient's phone. Both are fixed.
+1. **First, the part that keeps a case moving** (states, timers, log). A case runs for days and mostly
+   waits, so something has to remember what's owed and when. I tested it with fake calls.
+2. **Then one real call, before any workflow.** Every step in this job is a phone call. If I couldn't
+   get facts I trust out of one, there was no point building five kinds.
+3. **Then the steps, in the order a case needs them.** The address comes first because suppliers can't
+   be ranked without it. The doctor's order needs nothing from the patient, so it runs in parallel.
+   Delivery is last because it needs both a supplier and a valid order.
+4. **Then your failure list, one by one.** Recovery only means something once there's a working path
+   to recover to.
+
+The plan came to about 4¼ hours, over your 3-hour box. Hardening took more time after that.
 
 ## Technology & architecture
 
