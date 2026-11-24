@@ -1,7 +1,8 @@
 """The state machine. step() is the only place case state changes. No LLM in here.
 
-    NEW -> NEED_PATIENT_INFO -> WORKING (sourcing || order chase) -> READY_TO_MATCH
+    NEW -> NEED_PATIENT_INFO -> WORKING (supplier sourcing) -> READY_TO_MATCH
         -> DELIVERY_SCHEDULED -> AWAITING_DELIVERY_CONFIRMATION -> CLOSED
+    The order chase runs alongside from the start; matching waits for both.
     any state -> ESCALATED;  ghosting / refusal -> back to WORKING (valid order kept)
 
 One step = one timer: run its handler, buffer the resulting events, move the state as far
@@ -21,6 +22,7 @@ from dme.events import (
     CaseOpened,
     Event,
     LLMCalled,
+    PatientAddressSet,
     StateChanged,
     TaskFailed,
     TimerClosed,
@@ -117,7 +119,10 @@ class Orchestrator:
         self._cancel_all(*result.cancel)
         for e in result.events:
             self._emit(e)
-            if self.messenger and (message := self.messenger.for_event(e, self.view.case)):
+            news = e
+            if isinstance(e, PatientAddressSet) and self.view.case.order_status is OrderStatus.VALID:
+                news = self.view.orders_received[-1]  # came before we could tell them
+            if self.messenger and (message := self.messenger.for_event(news, self.view.case)):
                 self._emit(message)
             elif not self.view.case.patient.texts_ok and milestone_of(e) in CALLED_IF_NO_TEXTS:
                 self._cancel_all("patient_update")  # the call gives the latest news
@@ -168,10 +173,10 @@ class Orchestrator:
         now = self.clock.now
         if new is C.NEED_PATIENT_INFO:
             self._schedule(now, Task(kind="patient_intake"))
+            # The order needs nothing from the patient, so it doesn't wait for them.
+            self._schedule(now + config.CALL_GAP, Task(kind="order_call"))
         elif new is C.WORKING:
             self._cancel_all("checkin", "confirm_delivery", "schedule_delivery")
-            if self.view.case.order_status is OrderStatus.VERBAL_ONLY:
-                self._schedule(now + config.CALL_GAP, Task(kind="order_call"))
         elif new is C.READY_TO_MATCH:
             self._cancel_all("supplier_screen")
             active = self.view.active_supplier()

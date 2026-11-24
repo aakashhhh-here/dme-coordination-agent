@@ -101,11 +101,12 @@ def test_stale_followup_is_cancelled_when_a_document_arrives(tmp_path, monkeypat
 
 
 def test_no_go_ahead_means_no_go(tmp_path, monkeypatch):
-    """The patient gives an address but never says yes: nothing may be ordered."""
+    """The patient gives an address but never says yes: no supplier may be involved.
+    The doctor's paperwork is requested anyway; it commits nobody to anything."""
     monkeypatch.setitem(personas()["patient"], "undecided", {"proceed": "unsure"})
     view, events = run(tmp_path, patient="undecided")
     assert view.escalations[0].reason == "patient_info_incomplete"
-    assert not calls(events, "pcp_request") and not calls(events, "supplier_screen")
+    assert not calls(events, "supplier_screen") and view.orders_sent == []
 
 
 def test_unknown_facts_are_never_known():

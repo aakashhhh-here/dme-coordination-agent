@@ -89,7 +89,8 @@ CASES = {
     ),
     "11_someone_else_answers": (
         dict(patient="patient_neighbor_answers"), "patient_info_incomplete",
-        lambda v, ev: len(calls(ev, "patient_intake")) == 3 and len(v.calls) == 3,
+        lambda v, ev: len(calls(ev, "patient_intake")) == 3
+        and not calls(ev, "supplier_screen") and v.messages == [],
     ),
     "12_supplier_slips_and_patient_wants_no_texts": (
         dict(patient="patient_no_texts", suppliers={LAKESHORE: "supplier_slips_a_day"}), LAKESHORE,

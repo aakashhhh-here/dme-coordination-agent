@@ -1,4 +1,4 @@
-"""Steps 6 and 8: order validation, ranking, screening. Pure functions."""
+"""Order validation, ranking, screening. Pure functions."""
 
 from datetime import date
 

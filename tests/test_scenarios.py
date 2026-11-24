@@ -38,7 +38,9 @@ def test_unreachable_patient_escalates_after_n_days(tmp_path):
     tries = calls(events, "patient_intake")
     assert reason(view) == "patient_unreachable"
     assert [c.at for c in tries] == [at(23), at(24, 12), at(25, 15)]  # different times of day
-    assert not [e for e in events if e.type == "llm_called"]
+    # Nobody to talk to, but the order is in hand for whoever takes over.
+    assert len(calls(events, "pcp_request")) == 1
+    assert view.case.order_status is OrderStatus.VALID and view.messages == []
 
 
 @pytest.mark.parametrize(
@@ -312,3 +314,31 @@ def test_unconfirmed_address_is_not_used(tmp_path, monkeypatch):
     assert view.case.patient.address is None
     assert view.escalations[0].reason == "patient_info_incomplete"
     assert not calls(events, "supplier_screen")
+
+
+def test_order_may_arrive_before_the_patient_is_reached(tmp_path):
+    view, events = run(tmp_path, patient="patient_slow_phone")
+    (received,) = [e for e in events if e.type == "order_received"]
+    reached = next(c for c in calls(events, "patient_intake") if c.connected)
+    assert received.at < reached.at
+    assert len(calls(events, "pcp_request")) == 1  # reaching the patient asks for nothing twice
+    assert view.state == "closed"
+    # No text before the patient agreed to texts.
+    assert all(m.at >= reached.at for m in view.messages)
+    assert [m.milestone for m in view.messages].count("order_confirmed") == 1
+
+
+def test_order_chase_stops_when_the_patient_declines(tmp_path):
+    view, events = run(tmp_path, patient="patient_declines")
+    assert reason(view) == "patient_declined"
+    assert not calls(events, "pcp_request") and view.timers == {}
+
+
+def test_pending_order_chase_stops_when_the_patient_declines_later(tmp_path, monkeypatch):
+    from dme.sim.counterparty import personas
+
+    late = {"answers": [False, True], "proceed": "no"}
+    monkeypatch.setitem(personas()["patient"], "declines_late", late)
+    view, events = run(tmp_path, patient="declines_late", pcp="pcp_never_sends")
+    assert reason(view) == "patient_declined" and view.timers == {}
+    assert calls(events, "pcp_request") and not calls(events, "pcp_followup")
