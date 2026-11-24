@@ -10,7 +10,7 @@ in this job happen between the steps, so automating one step well would have lef
 1. **First, the part that keeps a case moving** (states, timers, log). A case runs for days and mostly
    waits, so something has to remember what's owed and when. I tested it with fake calls.
 2. **Then one real call, before any workflow.** Every step in this job is a phone call. If I couldn't
-   get facts I trust out of one, there was no point building five kinds.
+   get facts I trust out of one, there was no point building the rest.
 3. **Then the steps, in the order a case needs them.** The address comes first because suppliers can't
    be ranked without it. The doctor's order needs nothing from the patient, so it runs in parallel.
    Delivery is last because it needs both a supplier and a valid order.
