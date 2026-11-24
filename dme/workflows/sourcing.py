@@ -1,4 +1,4 @@
-"""Supplier sourcing.  [Option B slot: ParallelSourcer behind the same interface]"""
+"""Supplier sourcing.  A parallel sourcer could replace SimpleSourcer behind SupplierSourcer."""
 
 from __future__ import annotations
 

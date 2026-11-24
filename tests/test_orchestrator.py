@@ -1,4 +1,4 @@
-"""Step 3: the state machine alone, with stub handlers."""
+"""The state machine alone, with stub handlers."""
 
 import pytest
 

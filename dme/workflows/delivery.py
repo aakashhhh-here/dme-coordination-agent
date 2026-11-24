@@ -1,6 +1,6 @@
 """Schedule the delivery and make sure the chair actually arrives.
 
-[Option B slot: a multi-checkpoint watchdog behind DeliveryMonitor]
+More checkpoints could be added behind DeliveryMonitor.
 """
 
 from __future__ import annotations

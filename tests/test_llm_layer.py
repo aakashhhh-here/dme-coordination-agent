@@ -1,4 +1,4 @@
-"""Step 4: call loop, extraction grounding, SDK wrapper. No network."""
+"""Call loop, extraction grounding, SDK wrapper. No network."""
 
 import json
 from datetime import date

@@ -1,4 +1,4 @@
-"""Step 10: the cost figure is code's; the LLM may not add facts."""
+"""The cost figure is code's; the LLM may not add facts."""
 
 import pytest
 

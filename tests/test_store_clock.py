@@ -1,4 +1,4 @@
-"""Step 2: event log replay, simulated clock, business hours."""
+"""Event log replay, simulated clock, business hours."""
 
 from datetime import date, datetime, timedelta
 

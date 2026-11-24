@@ -1,4 +1,4 @@
-"""Step 1: intake case + supplier directory load correctly, and stay sparse."""
+"""Intake case + supplier directory load correctly, and stay sparse."""
 
 from datetime import date
 
@@ -53,7 +53,7 @@ def test_eleanor_case_matches_intake(case):
 
 
 def test_patient_address_is_missing(case):
-    # Deliberate gap in intake: the system has to go get it (Step 5).
+    # Deliberate gap in intake: the system has to go get it.
     assert case.patient.address is None
 
 

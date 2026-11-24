@@ -2,7 +2,7 @@
 
 These are the shared vocabulary of the system. The orchestrator, rules and
 workflows only ever exchange these typed objects — free text from calls is
-converted into them by the extractor (Step 4) before anything acts on it.
+converted into them by the extractor before anything acts on it.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ class Patient(BaseModel):
     date_of_birth: date | None = None  # learned when we verify who answered
     texts_ok: bool = False
     # Intake did NOT capture an address. Supplier range can't be judged
-    # without it, so the system must obtain it (Step 5).
+    # without it, so the system must obtain it.
     address: Address | None = None
     insurance: Insurance = Insurance()
 
@@ -126,7 +126,7 @@ class SupplierRecord(BaseModel):
     committed_delivery_date: date | None = None
 
 
-# --- Call outcomes (produced by the extractor from transcripts — Step 4)
+# --- Call outcomes (produced by the extractor from transcripts)
 
 Confidence = Literal["high", "medium", "low"]
 

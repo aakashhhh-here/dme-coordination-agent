@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
-CASES_DIR = DATA_DIR / "cases"  # event logs, one JSONL per case (Step 2)
+CASES_DIR = DATA_DIR / "cases"  # event logs, one JSONL per case
 SCENARIOS_DIR = ROOT / "scenarios"
 
 # --- Models ---------------------------------------------------------------

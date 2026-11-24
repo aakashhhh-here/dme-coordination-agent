@@ -1,4 +1,4 @@
-"""Steps 5-11: whole cases on the simulated clock, offline."""
+"""Whole cases on the simulated clock, offline."""
 
 import re
 import subprocess
@@ -24,7 +24,7 @@ def reason(view):
     return view.escalations[0].reason if view.escalations else None
 
 
-# --- Step 5: patient -----------------------------------------------------------
+# --- patient -----------------------------------------------------------
 
 
 def test_cooperative_patient_moves_case_to_working_with_zip(tmp_path):
@@ -53,7 +53,7 @@ def test_other_patient_dead_ends(tmp_path, persona, why):
     assert reason(run(tmp_path, patient=persona)[0]) == why
 
 
-# --- Step 6: sourcing ----------------------------------------------------------
+# --- sourcing ----------------------------------------------------------
 
 
 def test_third_supplier_chosen_after_no_answer_and_out_of_stock(tmp_path):
@@ -124,7 +124,7 @@ def test_screening_call_reveals_only_the_zip(tmp_path):
     assert "Eleanor" not in seen[0] and "Halsted St" not in seen[0]
 
 
-# --- Steps 7 and 8: order --------------------------------------------------------
+# --- order --------------------------------------------------------
 
 
 def test_cooperative_pcp_sends_on_first_contact(tmp_path):
@@ -182,7 +182,7 @@ def test_pcp_dead_ends_escalate_after_bounded_tries(tmp_path, persona, why, kind
     assert not calls(events, "supplier_schedule")
 
 
-# --- Step 9: delivery --------------------------------------------------------------
+# --- delivery --------------------------------------------------------------
 
 
 def test_ghosting_detected_day_before_and_recovered(tmp_path):
@@ -222,7 +222,7 @@ def test_everyone_ghosts_escalates(tmp_path):
     assert all(r.status is S.GHOSTED for r in view.case.suppliers.values())
 
 
-# --- Step 11: demo scenarios ---------------------------------------------------------
+# --- demo scenarios ---------------------------------------------------------
 
 
 @pytest.mark.parametrize("name", ALL_SCENARIOS)
