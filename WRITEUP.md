@@ -2,13 +2,23 @@
 
 ## Sequencing
 
-1. **Event log, clock, state machine with stubs.** Everything plugs into these, and they prove the
-   control flow before any model is involved.
-2. **Call, then extract, then ground.** This does the actual work, so it came before any workflow.
-3. **Workflows by dependency:** address, then sourcing alongside the order chase, then delivery.
-4. **Failure modes as scenarios.** Lost orders, wrong codes and ghosting are the job, not the edges.
+The build was sized at about 4¼ hours at planning time (an estimate, against the suggested 3).
+Hardening and review of live transcripts came on top of that.
 
-## Architecture
+1. **Event log, clock, state machine with stub handlers.** Everything plugs into these, and they
+   prove the control flow before any model is involved.
+2. **One call: talk, extract, ground.** The riskiest part. If a conversation can't become facts code
+   can trust, nothing else matters, so it came before any workflow.
+3. **Workflows in dependency order:** patient, then suppliers and the doctor's order side by side,
+   then delivery.
+4. **Failure modes as whole-case scenarios.** Lost requests, wrong codes and ghosting are the job,
+   not the edges. Reading live transcripts then found gaps that tests had not: the signed order was
+   never actually sent, and anyone answering the phone was believed.
+
+I went for the whole loop rather than one deep piece because the delays live in the handoffs.
+What I protected from cuts: extraction, order validation, and escalation.
+
+## Technology & architecture
 
 ```
  timer due -> Orchestrator.step -> workflow handler -> Result(events, timers, escalate?)
@@ -18,45 +28,59 @@
             apply events, follow guards, append the batch to the log
 ```
 
-- **Handlers propose, the orchestrator decides.** A handler gets a view and returns a `Result`. It
-  can't write the log or change state; the orchestrator rejects it if it tries.
-- **A step is one write.** A crash leaves its timer open, so a restart redoes that step. The cost is
-  that a call in progress at the moment of a crash may be placed twice.
-- **"Unknown" is its own answer.** It never reads as yes or no. It earns a retry, then a human.
-- **The order reaches the supplier.** A case can't move to `DELIVERY_SCHEDULED` until the signed
-  order has been sent to the supplier that committed.
-- **Know who answered.** Patient facts are withheld from the agent until code has checked the date
-  of birth. No consent to texts means delivery news comes by phone instead.
-- **Minimum necessary.** Suppliers hear only a ZIP code until they qualify and the order is valid.
-
-How the code follows SOLID:
-
-| | |
+| Choice | Why |
 |---|---|
-| Single responsibility | `events` (facts), `view` (replay), `store` (file), `rules/` (decisions), one module per workflow |
-| Open/closed | Order checks and screening questions are tables: add a row. New task kinds register a handler |
-| Liskov | `ClaudeLLM`, `ClaudeCLILLM`, `OfflineLLM` and the tests' `FakeLLM` are interchangeable |
-| Interface segregation | Small protocols: `LLM`, `Handler`, `PhoneLine`, `FaxInbox`, `OrderOutbox`, `SupplierSourcer`, `DeliveryMonitor` |
-| Dependency inversion | Workflows depend on those protocols; only `app.py` knows the concrete classes |
+| Plain Python state machine, no agent framework | The flow is known in advance, and a reviewer can read every transition in one file. A model choosing the next step would be harder to test and audit |
+| Claude (Opus 5.5 by default) | Calls need judgment and extraction needs care. The agent and simulator models are one line each in `config.py` |
+| Pydantic | One set of types for structured output, events and rules |
+| JSONL event log | The brief allows a file; replay gives crash recovery and an audit trail |
+| Simulated clock | Days of follow-ups run in minutes, and tests are repeatable |
 
-## Cut
+- **The LLM talks and reads; code decides.** Each extracted fact needs a quote the other party
+  really said, or it counts as unknown. Unknown is never yes or no: it earns a retry, then a human.
+- **Handlers propose, the orchestrator decides.** A handler returns a `Result`; only the
+  orchestrator writes the log or changes state.
+- **A step is one write.** A crash redoes that step. The cost: a call in progress may be placed twice.
+- **The order doesn't wait for the patient.** It needs nothing from them, so it starts 15 minutes
+  in. The cost: the office may do paperwork for someone who then declines.
+- **The code is checked at both ends:** on the doctor's order, and on what the supplier says it will
+  bill. A supplier gets the signed order only after naming the right code.
+- **Know who answered.** Case facts are withheld until code has checked the date of birth. Suppliers
+  hear only a ZIP code until they qualify and the order is valid.
 
-- Parallel supplier calls, a backup supplier kept warm, supplier memory across cases.
-- Resuming an escalated case after a human decides. Today `ESCALATED` is final, and it also stops
-  the parallel work (for example, the order chase when suppliers run out).
-- Earlier ghosting checks. One check-in the business day before delivery is late if the date is far out.
-- More than one reschedule: a supplier may move its date once; a second slip gets it replaced.
-- Capped rental, deductible status and proof-of-delivery paperwork. The cost message is general.
+## The cut list
 
-## Limits of the evidence
+| Cut | Why |
+|---|---|
+| Real telephony and fax | Adds integration work without testing the decisions; it sits behind small interfaces |
+| Parallel supplier calls | Saves simulated minutes. Order follow-ups and ghosting cost days |
+| Backup supplier kept warm | Needs a policy on holding two suppliers without misleading either |
+| Supplier memory across cases | One case has no history to learn from |
+| Resuming an escalated case | Needs a human-facing step. Today `ESCALATED` is final and also stops unaffected work, the largest gap against the north star |
+| More than one delivery check-in | One, the business day before, catches silence, but late if the date is far out |
+| A second reschedule | One slip is cheaper than starting over; a second is a pattern |
+| Capped rental, deductible status, proof of delivery | Billing detail beyond the ~20% message. The cost message stays general |
+| Medical necessity | Rests on the doctor's visit notes; we check the order document only |
 
-- Offline tests prove control flow and safety rules, not model quality. The live tests do that on
-  simulated people, who are more articulate than real ones. No real calls were made.
-- Quote grounding catches invented answers, not a real quote that was misunderstood.
+**Limits of the evidence.** Offline tests prove control flow and safety rules, not model quality. Live
+runs use simulated people, who are tidier than real ones. No real calls were made. Grounding catches
+invented answers, not a real quote that was misunderstood. The billing check is the supplier's word;
+we never see the claim.
 
-## Next
+## What's next
 
-1. Human-resolution events, so an escalated case continues.
-2. B3 (more delivery checkpoints) and B5 (backup supplier): the largest cut in patient waiting time.
-3. A graded set of real, consented transcripts to measure extraction before any live calls.
-4. B6: a telephony adapter behind `PhoneLine`, with call-consent and recording rules by state.
+**One more day**
+1. **Resume after a human decides**, and keep unaffected work running meanwhile. A human should
+   answer one question, not inherit the case.
+2. **Earlier delivery check-ins:** confirm within a day of committing, then midway. Ghosting is
+   found only by chasing, so chase sooner.
+
+**Two weeks**
+1. **A graded set of real, consented transcripts**, with extraction accuracy measured per field.
+   It decides whether any live call is safe, so it comes first.
+2. **A backup supplier**, so a ghosting costs hours instead of another round of calls.
+3. **A phone adapter**, with call-consent and recording rules by state, starting with supplier calls:
+   no patient facts are shared while screening.
+
+Why this order: first finish the loop, so a case can always end; then prove we can trust what we
+hear; then put it on real phones.

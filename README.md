@@ -5,6 +5,9 @@ advocate, and hands a human one specific decision when it truly can't go on.
 
 ## Setup
 
+Needs Python 3.11+, [uv](https://docs.astral.sh/uv/), and either an Anthropic API key or a logged-in
+Claude Code. `--offline` needs no credentials.
+
 ```
 uv sync
 export ANTHROPIC_API_KEY=...            # or: export DME_LLM_BACKEND=claude-cli  (logged-in Claude Code)
@@ -20,6 +23,13 @@ uv run python run_demo.py --scenario must_escalate
 uv run python run_demo.py --scenario patient_unreachable
 uv run python scripts/try_call.py --persona supplier_out_of_stock
 ```
+
+| Scenario | Watch for |
+|---|---|
+| `happy` | The order chase running alongside intake; nothing scheduled until both are done |
+| `messy_but_recovers` | A lost request, a K0003 order and a silent supplier, each caught and worked around. **Start here** |
+| `must_escalate` | Every supplier declines; a human gets one decision and everything already tried |
+| `patient_unreachable` | A human gets the case with the written order already in hand |
 
 Add `--offline` to run free with a rule-based stand-in instead of Claude. `run_demo.py` exits 1 if a
 scenario doesn't end as its YAML says. Each run's full event log is in `data/cases/`.
@@ -58,6 +68,10 @@ runs twelve whole cases, best to worst, offline and on real Claude; run the live
 
 ## Assumptions
 
+- Every supplier in the directory is Medicare-enrolled, as the brief says. We don't re-check.
+- The office can be asked for the order before the patient is reached: the doctor already gave a
+  verbal one. No supplier is contacted until the patient agrees.
+- What a supplier says it will bill is taken as its answer; the claim itself is never seen.
 - Intake has no patient phone number. We assume the intake channel can reach the patient; we ask
   for a delivery phone on the first call.
 - Intake has an age but no date of birth. The first call can only check that the one given fits the
