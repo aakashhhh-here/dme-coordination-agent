@@ -31,6 +31,7 @@ _KEYS = {
     "new_delivery_date": "new delivery date",
     "address": "home address",
     "order_fax": "order fax number",
+    "claim_billing_code": "billing code on the claim",
     "phone_for_delivery": "phone for the delivery driver",
     "address_confirmed": "address read back correctly",
     "wants_to_proceed": "wants to proceed",

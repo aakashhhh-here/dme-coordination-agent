@@ -12,6 +12,7 @@ from dme import config
 from dme.clock import Task, add_business_days, is_business_day
 from dme.events import CheckinPassed, Event, OrderSent, OrderWithdrawn, SupplierUpdated
 from dme.models import DateFact, SupplierStatus
+from dme.rules.billing import claim_code_ok
 from dme.rules.phone import usable_number
 from dme.view import CaseView
 from dme.workflows.base import OrderOutbox, Phone, Result
@@ -63,12 +64,16 @@ class Scheduler:
                 f"Complete signed order from {case.pcp.name} in hand; we fax it with the delivery details after this call.",
                 "Coverage: Original Medicare Part B",
             ],
-            questions=["Can they schedule the delivery?", "On exactly which calendar date?", "Which fax number should the signed order and delivery details go to?"],
+            questions=["Can they schedule the delivery?", "On exactly which calendar date?", "Which fax number should the signed order and delivery details go to?",
+                       "Which billing code will be on their Medicare claim? (They must say the code.)"],
         )  # fmt: skip
         out, result = call.outcome, Result(events=[call])
         when, fax = usable_date(out.delivery_date, now), usable_number(out.order_fax)
+        code_ok = claim_code_ok(out.claim_billing_code, case.equipment)
         first_try = not view.calls_to(sid, "supplier_schedule")
-        if out.can_schedule.yes and when and fax:
+        if code_ok is False:
+            update = dict(status=S.DECLINED, reason="wrong_billing_code")
+        elif out.can_schedule.yes and when and fax and code_ok:
             update = dict(status=S.COMMITTED, committed_delivery_date=when)
             packet = delivery_packet(view, when)
             self.outbox.send_order(fax, packet)

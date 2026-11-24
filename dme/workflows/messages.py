@@ -49,7 +49,7 @@ def milestone_of(e: Event) -> str | None:
     if isinstance(e, OrderReceived):
         return None if e.defects else "order_confirmed"
     if isinstance(e, SupplierUpdated):
-        if e.status is S.DECLINED and e.reason == "could_not_schedule":
+        if e.status is S.DECLINED and e.reason in ("could_not_schedule", "wrong_billing_code"):
             return "delivery_problem"  # the patient was already told about this supplier
         return "delivery_moved" if e.reason == "rescheduled" else _BY_STATUS.get(e.status)
     return None

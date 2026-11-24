@@ -170,6 +170,7 @@ class World:
             dated = {
                 "delivery date": add_business_days(today, 2).isoformat(),
                 "order fax number": p.get("fax", "(312) 555-0150"),
+                "billing code on the claim": p.get("bills", view.case.equipment.hcpcs),
             }
             return {"can schedule delivery": can} | (dated if can == "yes" else {})
         if kind == "supplier_checkin":

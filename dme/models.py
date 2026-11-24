@@ -213,6 +213,7 @@ class SupplierScheduleOutcome(CallOutcomeBase):
     can_schedule: Fact = Fact()
     delivery_date: DateFact = DateFact()
     order_fax: TextFact = TextFact()
+    claim_billing_code: TextFact = TextFact()  # the code the supplier says it will bill
 
 
 class SupplierCheckinOutcome(CallOutcomeBase):

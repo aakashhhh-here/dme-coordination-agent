@@ -11,6 +11,8 @@ supplier:
   supplier_vague: {new_medicare: "unsure", in_stock: "unsure", assignment: "unsure", serves_area: "unsure", style: "You are a temp. You don't know anything for sure and always say you would have to check."}
   supplier_refuses_to_schedule: {can_schedule: "no"}
   supplier_no_fax: {fax: "unsure"}
+  supplier_bills_wrong_code: {bills: K0003}
+  supplier_unsure_of_code: {bills: "unsure"}
   supplier_yes_then_ghost: {answers_after_commit: false, delivers: false}
   supplier_withdraws: {on_track: "no"}
   supplier_slips_a_day: {on_track: ["no", "yes"], new_date_in: 2}

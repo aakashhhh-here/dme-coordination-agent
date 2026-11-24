@@ -9,6 +9,7 @@ from dme.clock import Task
 from dme.data_loader import load_case, load_suppliers
 from dme.events import CallCompleted, CaseOpened, SupplierUpdated
 from dme.models import DateFact, DeliveryConfirmationOutcome, PatientCallOutcome, TextFact
+from dme.rules.billing import claim_code_ok
 from dme.rules.phone import usable_number
 from dme.sim.counterparty import Scenario, World, personas
 from dme.sim.offline import OfflineLLM
@@ -207,3 +208,36 @@ def test_a_patient_without_texts_is_phoned_the_news_but_not_forever(tmp_path):
     due = view.active_supplier().committed_delivery_date
     missed = calls(events, "patient_update")
     assert 1 <= len(missed) <= 3 and all(c.at.date() <= due for c in missed)
+
+
+@pytest.mark.parametrize(
+    "persona, why, tries",
+    [("bills_wrong_code", "wrong_billing_code", 1), ("unsure_of_code", "could_not_schedule", 2)],
+)
+def test_supplier_must_bill_the_ordered_code(tmp_path, persona, why, tries):
+    view, events = run(tmp_path, suppliers={LAKESHORE: f"supplier_{persona}"})
+    assert view.case.suppliers[LAKESHORE].reason == why and view.state == "closed"
+    assert LAKESHORE not in view.order_sent_to  # no order, no delivery, no bad claim
+    asked = [c for c in calls(events, "supplier_schedule") if c.party_id == LAKESHORE]
+    assert len(asked) == tries
+    assert "delivery_problem" in [m.milestone for m in view.messages]
+
+
+@pytest.mark.parametrize(
+    "value, quote, ok",
+    [
+        ("K0001", "We'll bill K0001.", True),
+        ("k0001", "K 0001", True),
+        ("K0001", "K zero zero zero one", True),
+        ("K0003", "We'd bill K0003.", False),
+        ("K0001", "We'd bill K0003.", None),  # misread
+        ("K0001", "K0001 or K0003, depends.", None),
+        ("the usual one", "the usual one", None),
+        (None, "", None),
+    ],
+)
+def test_claim_code(value, quote, ok):
+    item = load_case().equipment
+    fact = TextFact(value=value, confidence="high", evidence_quote=quote)
+    assert claim_code_ok(fact, item) is ok
+    assert claim_code_ok(fact.model_copy(update={"confidence": "low"}), item) is None
