@@ -1,0 +1,7 @@
+description: Every supplier in range declines. A human has to decide what gives.
+default_supplier: supplier_not_taking_new
+suppliers:
+  lakeshore-home-medical-equipment: supplier_out_of_stock
+  halsted-home-health-supply: supplier_no_assignment
+expect_state: escalated
+expect_reason: no_supplier

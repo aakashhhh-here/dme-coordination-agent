@@ -1,0 +1,34 @@
+[project]
+name = "dme-coordination-agent"
+version = "0.1.0"
+description = "Prototype: automated DME back-end coordination (patient / PCP / supplier / Medicare)"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.75",
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["dme"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "llm: makes real Claude API calls (needs ANTHROPIC_API_KEY, costs money). Run with: pytest -m llm",
+]
+# Default run is offline and free; opt in to real-LLM tests explicitly.
+addopts = "-m 'not llm'"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.format]
+skip-magic-trailing-comma = true

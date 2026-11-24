@@ -1,0 +1,29 @@
+{
+  "case_id": "eleanor-martinez-k0001",
+  "patient": {
+    "name": "Eleanor Martinez",
+    "age": 72,
+    "phone": null,
+    "address": null,
+    "insurance": {
+      "plan": "original_medicare_part_b",
+      "supplemental": null
+    }
+  },
+  "pcp": {
+    "name": "Dr. Sarah Chen",
+    "practice": "Sunrise Family Medicine",
+    "city": "Chicago",
+    "state": "IL",
+    "phone": "(312) 555-0198",
+    "npi": null
+  },
+  "equipment": {
+    "description": "Standard manual wheelchair",
+    "hcpcs": "K0001",
+    "quantity": 1
+  },
+  "pcp_visit_days_before_start": 3,
+  "order_status": "verbal_only",
+  "intake_notes": "PCP visit completed 3 days ago, verbal order noted in chart, written order not yet submitted. Suppliers: none contacted yet."
+}

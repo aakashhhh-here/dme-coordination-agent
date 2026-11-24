@@ -1,0 +1,4 @@
+description: The patient never picks up.
+patient: patient_unreachable
+expect_state: escalated
+expect_reason: patient_unreachable

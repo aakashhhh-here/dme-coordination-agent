@@ -1,0 +1,8 @@
+description: Missed calls, an out-of-stock supplier, a lost order, a wrong code, and a supplier that ghosts.
+patient: patient_slow_phone
+pcp: pcp_messy
+suppliers:
+  lakeshore-home-medical-equipment: supplier_no_answer
+  lincoln-park-dme-services: supplier_out_of_stock
+  halsted-home-health-supply: supplier_yes_then_ghost
+expect_state: closed
